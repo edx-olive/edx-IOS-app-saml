@@ -33,10 +33,11 @@
 #import "OEXUserLicenseAgreementViewController.h"
 #import "Reachability.h"
 #import "OEXStyles.h"
+#import <SafariServices/SafariServices.h>
 
 #define USER_EMAIL @"USERNAME"
 
-@interface OEXLoginViewController () <AgreementTextViewDelegate, InterfaceOrientationOverriding>
+@interface OEXLoginViewController () <AgreementTextViewDelegate, InterfaceOrientationOverriding, SFSafariViewControllerDelegate>
 {
     CGPoint originalOffset;     // store the offset of the scrollview.
     UITextField* activeField;   // assign textfield object which is in active state.
@@ -45,6 +46,8 @@
 @property (nonatomic, strong) NSString* str_ForgotEmail;
 @property (nonatomic, strong) NSString* signInID;
 @property (nonatomic, strong) NSString* signInPassword;
+@property (nonatomic, strong) SFSafariViewController* svc;
+@property (nonatomic, strong) NSString* authorizationCode;
 @property (nonatomic, assign) BOOL reachable;
 @property (strong, nonatomic) IBOutlet UIView* externalAuthContainer;
 @property (weak, nonatomic, nullable) IBOutlet OEXCustomLabel* lbl_OrSignIn;
@@ -55,6 +58,8 @@
 @property (weak, nonatomic, nullable) IBOutlet LogistrationTextField* tf_Password;
 @property (weak, nonatomic, nullable) IBOutlet UIButton* btn_TroubleLogging;
 @property (weak, nonatomic, nullable) IBOutlet UIButton* btn_Login;
+@property (weak, nonatomic, nullable) IBOutlet UIButton* btn_sso;
+@property (weak, nonatomic, nullable) IBOutlet UIButton* btn_staff_sso;
 @property (weak, nonatomic, nullable) IBOutlet UIScrollView* scroll_Main;
 @property (weak, nonatomic, nullable) IBOutlet UIImageView* img_Map;
 @property (weak, nonatomic, nullable) IBOutlet UIImageView* img_Logo;
@@ -68,6 +73,8 @@
 @property (nonatomic, assign) id <OEXExternalAuthProvider> authProvider;
 @property (nonatomic) OEXTextStyle *placeHolderStyle;
 @property (weak, nonatomic) IBOutlet UIView *logo_container;
+
+@property (weak, nonatomic) NSString* userTypeValue;
 
 @end
 
@@ -89,9 +96,12 @@
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self.view setUserInteractionEnabled:NO];
 }
+
+- (void)safariViewControllerDidFinish:(SFSafariViewController *)controller {
+}
+
 - (BOOL)isFacebookEnabled {
     return ![OEXNetworkUtility isOnZeroRatedNetwork] && [self.environment.config facebookConfig].enabled;
 }
@@ -167,6 +177,31 @@
     [self setUpAgreementTextView];
 }
 
+- (void) SSOLogin:(NSNotification *) notification
+{
+    NSURL *url = notification.object;
+    NSMutableDictionary *params = [[NSMutableDictionary alloc] init];
+    NSURLComponents * component = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:true];
+    for (NSURLQueryItem* param in component.queryItems) {
+      [params setObject:param.value forKey:param.name];
+    }
+    if ([params[@"Status"] isEqual: @"success"]){
+        self.authorizationCode = params[@"AuthorizationCode"];
+        
+        [NSUserDefaults.standardUserDefaults setValue:self.userTypeValue forKey:@"userType"];
+        [NSUserDefaults.standardUserDefaults synchronize];
+        
+        [OEXAuthentication exchangeAuthorizationCode:self.authorizationCode completionBlock:^(NSData* data, NSURLResponse* response, NSError* error){
+            [self handleLoginResponseWith:data response:response error:error];
+        }];
+    } else {
+        [[UIAlertController alloc] showAlertWithTitle:[Strings floatingErrorLoginTitle]
+                                              message:[Strings ssoLoginFailed]
+                                            onViewController:self];
+    }
+    [self.svc dismissViewControllerAnimated:true completion:nil];
+}
+
 -(void) setUpAgreementTextView {
     [self.agreementTextView setupFor:AgreementTypeSignIn config:self.environment.config];
     self.agreementTextView.agreementDelegate = self;
@@ -185,6 +220,8 @@
     self.seperatorRight.accessibilityIdentifier = @"LoginViewController:right-seperator-image-view";
     self.btn_TroubleLogging.accessibilityIdentifier = @"LoginViewController:trouble-logging-button";
     self.btn_Login.accessibilityIdentifier = @"LoginViewController:login-button";
+    self.btn_sso.accessibilityIdentifier = @"LoginViewController:btn-sso";
+    self.btn_staff_sso.accessibilityIdentifier = @"LoginViewController:btn-staff-sso";
     self.scroll_Main.accessibilityIdentifier = @"LoginViewController:main-scroll-view";
     self.img_Map.accessibilityIdentifier = @"LoginViewController:map-image-view";
     self.activityIndicator.accessibilityIdentifier = @"LoginViewController:activity-indicator";
@@ -216,6 +253,10 @@
     self.view.exclusiveTouch = YES;
 
     // Scrolling on keyboard hide and show
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(SSOLogin:)
+                                                 name:NOTIFICATION_REDIRECT_SSO object:nil];
+    
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(keyboardWasShown:)
                                                  name:UIKeyboardDidShowNotification object:nil];
@@ -282,6 +323,8 @@
     [self.btn_TroubleLogging setAttributedTitle:[forgotButtonStyle attributedStringWithText:[Strings troubleInLoginButton]] forState:UIControlStateNormal];
 
     [self.btn_Login applyButtonStyleWithStyle:[self.environment.styles filledPrimaryButtonStyle] withTitle:[self signInButtonText]];
+    [self.btn_sso applyButtonStyleWithStyle:[self.environment.styles blankPrimaryButtonStyle] withTitle:[Strings ssoInText]];
+    [self.btn_staff_sso applyButtonStyleWithStyle:[self.environment.styles blankPrimaryButtonStyle] withTitle:[Strings ssoStaffInText]];
     [self.activityIndicator stopAnimating];
 
     NSString* username = [[NSUserDefaults standardUserDefaults] objectForKey:USER_EMAIL];
@@ -346,6 +389,22 @@
                                               message:[Strings networkNotAvailableMessageTrouble]
                                      onViewController:self];
     }
+}
+
+- (IBAction)ssoClicked:(id)sender {
+    self.userTypeValue = @"Student";
+    NSURL * url = [NSURL URLWithString: [NSString stringWithFormat:@"%@/auth/login/tpa-saml/?auth_entry=login&next=PROJECT_NAME://sso&idp=default", OEXConfig.sharedConfig.apiHostURL.absoluteString]];
+    self.svc = [[SFSafariViewController alloc] initWithURL:url];
+    self.svc.delegate = self;
+    [self presentViewController:self.svc animated:YES completion:nil];
+}
+
+- (IBAction)staffSsoClicked:(id)sender {
+    self.userTypeValue = @"Staff";
+    NSURL * url = [NSURL URLWithString: [NSString stringWithFormat:@"%@/auth/login/tpa-saml/?auth_entry=login&next=PROJECT_NAME://sso&idp=staff", OEXConfig.sharedConfig.apiHostURL.absoluteString]];
+    self.svc = [[SFSafariViewController alloc] initWithURL:url];
+    self.svc.delegate = self;
+    [self presentViewController:self.svc animated:YES completion:nil];
 }
 
 - (IBAction)loginClicked:(id)sender {
@@ -556,6 +615,7 @@
 }
 
 - (void)didLogin {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self.delegate loginViewControllerDidLogin:self];
 }
 

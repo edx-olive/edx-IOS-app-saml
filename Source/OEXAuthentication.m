@@ -94,6 +94,31 @@ OEXNSDataTaskRequestHandler OEXWrapURLCompletion(OEXURLRequestHandler completion
     [[session dataTaskWithRequest:request completionHandler:OEXWrapURLCompletion(completion)] resume];
 }
 
++(void)exchangeAuthorizationCode:(NSString *)token completionBlock:(OEXURLRequestHandler)completionBlock{
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];
+    
+    NSMutableDictionary* parameters = [[NSMutableDictionary alloc] init];
+    [parameters setSafeObject:token forKey:@"authorization_code"];
+    [parameters setSafeObject:[[OEXConfig sharedConfig] oauthClientID] forKey:@"client_id"];
+    [self executePOSTRequestWithPath:URL_EXCHANGE_AUTHORIZATION_CODE parameters:parameters completion:^(NSData *data, NSHTTPURLResponse *response, NSError *error) {
+        if(!error) {
+            NSHTTPURLResponse* httpResp = (NSHTTPURLResponse*) response;
+            if(httpResp.statusCode == 200) {
+                NSError* error;
+                NSDictionary* dictionary = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
+                NSAssert(error == nil, @"Invalid JSON from server");
+                OEXAccessToken* token = [[OEXAccessToken alloc] initWithTokenDetails:dictionary];
+                [self handleSuccessfulLoginWithToken:token completionHandler:completionBlock];
+                return;
+            }
+            else if(httpResp.statusCode == 401) {
+                error = [NSError errorWithDomain:@"Not valid user" code:401 userInfo:[NSDictionary dictionaryWithObjects:[NSArray arrayWithObject:@"You are not associated with edx please signup up from website"] forKeys:[NSArray arrayWithObject:@"failed"]]];
+            }
+        }
+        OEXWrapURLCompletion(completionBlock)(data, response, error);
+    }];
+}
+
 + (void)requestTokenWithProvider:(id <OEXExternalAuthProvider>)provider externalToken:(NSString *)token completion:(OEXURLRequestHandler)completionBlock {
     
     [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:YES];

@@ -100,6 +100,13 @@
 - (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options {
     // pass the url to the handle deep link call
     BOOL handled = false;
+    
+    if ([[UIApplication sharedApplication] canOpenURL:url]){
+        [[NSNotificationCenter defaultCenter] postNotificationName:NOTIFICATION_REDIRECT_SSO object:url];
+        handled = true;
+        return handled;
+    }
+    
     if (self.environment.config.fabricConfig.kits.branchConfig.enabled) {
         handled = [[Branch getInstance] application:app openURL:url options:options];
         if (handled) {

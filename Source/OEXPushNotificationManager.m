@@ -105,7 +105,7 @@
         [provider sessionStartedWithUserDetails:userDetails settingsManager:self.settingsManager];
     }
 
-    [self performRegistration];
+//    [self performRegistration];
 }
 
 - (void)sessionEnded {

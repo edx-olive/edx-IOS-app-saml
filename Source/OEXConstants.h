@@ -49,6 +49,9 @@ typedef NS_ENUM(NSUInteger, OEXVideoSpeed) {
 // Dynamic Text Type Notification
 # define NOTIFICATION_DYNAMIC_TEXT_TYPE_UPDATE @"DynamicTextTypeUpdateNotification"
 
+// Redirect Sso Notification
+# define NOTIFICATION_REDIRECT_SSO @"SSORedirectNotification"
+
 //courses and videos
 #define CAV_KEY_COURSE @"course"
 #define CAV_KEY_VIDEOS @"videos"

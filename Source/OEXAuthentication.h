@@ -28,6 +28,8 @@ typedef void (^ OEXURLRequestHandler)(NSData* _Nullable data, NSHTTPURLResponse*
 
 + (void)requestTokenWithProvider:(id <OEXExternalAuthProvider>)provider externalToken:(NSString*)token completion:(OEXURLRequestHandler)completionBlock;
 
++ (void)exchangeAuthorizationCode:(NSString*)token completionBlock:(OEXURLRequestHandler)completionBlock;
+
 + (NSString*)authHeaderForApiAccess;
 
 + (void)resetPasswordWithEmailId:(NSString*)email completionHandler:(OEXURLRequestHandler)completionBlock;

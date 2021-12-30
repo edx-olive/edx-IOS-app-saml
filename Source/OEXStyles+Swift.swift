@@ -108,7 +108,15 @@ extension OEXStyles {
     @objc var filledPrimaryButtonStyle : ButtonStyle {
         return filledButtonStyle(color: OEXStyles.shared().primaryBaseColor())
     }
-
+    
+    @objc var blankPrimaryButtonStyle : ButtonStyle {
+        let buttonMargins : CGFloat = 8
+        let borderStyle = BorderStyle(cornerRadius: .Size(5), width: .Size(2), color: OEXStyles.shared().primaryBaseColor())
+        let textStyle = OEXTextStyle(weight: .semiBold, size: .large, color: OEXStyles.shared().primaryBaseColor())
+        return ButtonStyle(textStyle: textStyle, backgroundColor: nil, borderStyle: borderStyle,
+                           contentInsets : UIEdgeInsets.init(top: buttonMargins, left: buttonMargins, bottom: buttonMargins, right: buttonMargins))
+    }
+    
     func filledButtonStyle(color: UIColor) -> ButtonStyle {
         let buttonMargins : CGFloat = 8
         let borderStyle = BorderStyle()

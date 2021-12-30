@@ -1,6 +1,7 @@
-API_HOST_URL: 'https://lms-dev-ksu.raccoongang.com'
-ENVIRONMENT_DISPLAY_NAME: 'KSU'
-FEEDBACK_EMAIL_ADDRESS: 'Tp-mobile@ksu.edu.sa'
+#API_HOST_URL: 'https://lms-dev-PROJECT_NAME.campus.com'
+API_HOST_URL: 'https://<BACKEND_DOMAIN>'
+ENVIRONMENT_DISPLAY_NAME: '<PROJECT_NAME>'
+FEEDBACK_EMAIL_ADDRESS: 'mobile@<PROJECT_DOMAIN>'
 
 DEBUG: true
 MY_VIDEOS_ENABLED: true

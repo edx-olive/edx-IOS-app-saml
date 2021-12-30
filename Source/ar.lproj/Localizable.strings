@@ -1,7 +1,7 @@
 /*
  Localizable.strings
  edXVideoLocker
- 
+
  Created by Nirbhay Agarwal on 07/07/14.
  Copyright (c) 2014-2015 edX. All rights reserved.
  */
@@ -606,6 +606,8 @@
 "FLOATING_ERROR_LOGIN_TITLE"="حدث خطأ أثناء تسجيل الدخول";
 /* Title of overlay message shown when reset password fails */
 "FLOATING_ERROR_TITLE"="حدث خطأ أثناء تغيير كلمة المرور";
+/* Message for sso login failed */
+"SSO_LOGIN_FAILED"="Error occurred while logging you in with SSO_NAME";
 /* Adds a `:` after a label, used in form. Eg. "{First Name}: Bob" */
 "FORM_LABEL"="{label}:";
 /* Google login method */
@@ -845,6 +847,8 @@
 "SHARE_A_COURSE"="أحضر حاليًا مساقًا ممتعًا على منصّة {platform_name}! اطلع عليه:";
 /* Sign in screen title and button initiating login process after user enters credentials like username and password */
 "SIGN_IN_TEXT"="تسجيل الدخول";
+/* SSO text button */
+"SSO_IN_TEXT"="PROJECT_NAME Student";
 /* Message shown while user waits for response to a sign in request */
 "SIGN_IN_BUTTON_TEXT_ON_SIGN_IN"="جار تسجيل الدخول";
 /*  Accessibility text prefix for  Facebook and Google Buttons*/

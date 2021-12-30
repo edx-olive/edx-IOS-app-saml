@@ -8,13 +8,14 @@
 
 import UIKit
 import MessageUI
+import SafariServices
 
 fileprivate enum AccountviewOptions : Int {
     case Profile,
          UserSettings,
          SubmitFeedback,
          Logout
-    
+
         static let accountOptions = [Profile, UserSettings, SubmitFeedback, Logout]
 }
 
@@ -25,12 +26,14 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
     private let versionLabel = UILabel()
     typealias Environment =  OEXAnalyticsProvider & OEXConfigProvider & OEXSessionProvider & OEXStylesProvider & OEXRouterProvider
     fileprivate let environment: Environment
-    
+
+    private var isFirstUrl = true
+
     init(environment: Environment) {
         self.environment = environment
         super.init(nibName: nil, bundle :nil)
     }
-    
+
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -47,7 +50,7 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
         configureViews()
         addCloseButton()
     }
-    
+
     func configureViews() {
         tableView.estimatedRowHeight = 40
         tableView.rowHeight = UITableView.automaticDimension
@@ -71,25 +74,25 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
             closeButton.accessibilityHint = Strings.Accessibility.closeHint
             closeButton.accessibilityIdentifier = "AccountViewController:close-button"
             navigationItem.rightBarButtonItem = closeButton
-            
+
             closeButton.oex_setAction { [weak self] in
                 self?.dismiss(animated: true, completion: nil)
             }
         }
     }
-    
+
     func addConstraints() {
         contentView.snp.makeConstraints { make in
             make.edges.equalTo(safeEdges)
         }
-        
+
         tableView.snp.makeConstraints { make in
             make.top.equalTo(contentView)
             make.leading.equalTo(contentView)
             make.trailing.equalTo(contentView)
             make.bottom.equalTo(versionLabel.snp.top)
         }
-        
+
         versionLabel.snp.makeConstraints { make in
             make.top.equalTo(tableView.snp.bottom)
             make.leading.equalTo(contentView)
@@ -97,7 +100,7 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
             make.bottom.equalTo(contentView).inset(20)
         }
     }
-    
+
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
@@ -112,7 +115,7 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
     public func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return AccountviewOptions.accountOptions.count
     }
-    
+
     public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         // Configure the cell...
@@ -123,7 +126,7 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
         cell.accessibilityIdentifier = "AccountViewController:table-cell"
         return cell
     }
-    
+
     public func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if let option = AccountviewOptions(rawValue: indexPath.row) {
             switch option {
@@ -135,34 +138,36 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
             case .SubmitFeedback:
                 launchEmailComposer()
             case .Logout:
-                OEXFileUtility.nukeUserPIIData()
-                dismiss(animated: true, completion: { [weak self] in
-                    self?.environment.router?.logout()
-                })
+                let userType = UserDefaults.standard.value(forKey: "userType") as? String
+                if userType == "Student" {
+                    openSafari(urlString: "<logout url from MOE SSO if provided>")
+                } else {
+                    openSafari(urlString: "<logout url from MOE SSO if provided, for ADFS e.g., https://sso.DOMAIN/adfs/ls?wa=wsignout1.0">)
+                }
             }
         }
         tableView.deselectRow(at: indexPath, animated: true)
     }
-    
+
     public func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        
+
         if (indexPath.row == AccountviewOptions.Profile.rawValue && !environment.config.profilesEnabled)  {
             return 0
         }
-        
+
         return tableView.estimatedRowHeight
     }
-    
+
     private func accessoryType(option: AccountviewOptions) -> UITableViewCell.AccessoryType{
         switch option {
         case .SubmitFeedback, .Logout:
             return .none
-    
+
         default:
             return .disclosureIndicator
         }
     }
-    
+
     private func optionTitle(option: AccountviewOptions) -> String? {
         switch option {
         case .UserSettings :
@@ -175,8 +180,16 @@ class AccountViewController: UIViewController, UITableViewDelegate, UITableViewD
         case .Logout:
             return Strings.logout
         }
-        
+
         return nil
+    }
+
+    private func openSafari(urlString: String) {
+        if let url = URL(string: urlString) {
+            let svc = SFSafariViewController(url: url)
+            svc.delegate = self
+            self.present(svc, animated: true, completion: nil)
+        }
     }
 }
 
@@ -189,7 +202,7 @@ extension AccountViewController : MFMailComposeViewControllerDelegate {
             mail.mailComposeDelegate = self
             mail.navigationBar.tintColor = OEXStyles.shared().navigationItemTintColor()
             mail.setSubject(Strings.SubmitFeedback.messageSubject)
-            
+
             mail.setMessageBody(EmailTemplates.supportEmailMessageTemplate(), isHTML: false)
             if let fbAddress = environment.config.feedbackEmailAddress() {
                 mail.setToRecipients([fbAddress])
@@ -197,8 +210,26 @@ extension AccountViewController : MFMailComposeViewControllerDelegate {
             present(mail, animated: true, completion: nil)
         }
     }
-    
+
     func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
         dismiss(animated: true, completion: nil)
+    }
+}
+
+extension AccountViewController: SFSafariViewControllerDelegate {
+
+    func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
+
+        controller.dismiss(animated: true) {
+            if self.isFirstUrl {
+                self.isFirstUrl = false
+                self.openSafari(urlString: "https://PROJECT_NAME.gov.il/logout")
+            } else {
+                OEXFileUtility.nukeUserPIIData()
+                self.dismiss(animated: true, completion: {
+                    self.environment.router?.logout()
+                })
+            }
+        }
     }
 }
