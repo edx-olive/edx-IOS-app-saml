@@ -1,0 +1,12 @@
+{
+    "regular":"Cairo-Regular",
+    "semiBold":"Cairo-SemiBold",
+    "semiBoldItalic":"Cairo-SemiBold",
+    "bold":"Cairo-Bold",
+    "boldItalic":"Cairo-Bold",
+    "extraBold":"Cairo-Black",
+    "extraBoldItalic":"Cairo-Black",
+    "light":"Cairo-Light",
+    "lightItalic":"Cairo-Light",
+    "italic":"Cairo-Regular"
+}
